@@ -1,0 +1,13 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+
+# AWS / secrets
+aws-configs/*.json
+*.pem
+*.key
+
+# OS files
+.DS_Store

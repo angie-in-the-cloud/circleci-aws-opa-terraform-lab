@@ -1,0 +1,5 @@
+{
+  "resource_type": "aws_s3_bucket",
+  "bucket": "bad-example-bucket",
+  "acl": "public-read"
+}
