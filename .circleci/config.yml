@@ -1,1 +1,79 @@
+version: 2.1
 
+jobs:
+  test-aws-oidc:
+    docker:
+      - image: cimg/base:stable
+    environment:
+      AWS_DEFAULT_REGION: us-east-1
+    steps:
+      - checkout
+
+      - run:
+          name: Install AWS CLI
+          command: |
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip awscliv2.zip
+            sudo ./aws/install
+
+      - run:
+          name: Configure AWS OIDC Credentials
+          command: |
+            export AWS_ROLE_ARN="arn:aws:iam::<ACCOUNT_ID>:role/<ROLE_NAME>"
+            export AWS_WEB_IDENTITY_TOKEN_FILE="/tmp/web_identity_token"
+            echo $CIRCLE_OIDC_TOKEN_V2 > $AWS_WEB_IDENTITY_TOKEN_FILE
+
+      - run:
+          name: Verify Identity
+          command: |
+            aws sts get-caller-identity
+
+  validate-terraform:
+    docker:
+      - image: cimg/base:stable
+    environment:
+      AWS_DEFAULT_REGION: us-east-1
+    steps:
+      - checkout
+
+      - run:
+          name: Install Terraform
+          command: |
+            curl -LO https://releases.hashicorp.com/terraform/1.6.6/terraform_1.6.6_linux_amd64.zip
+            unzip terraform_1.6.6_linux_amd64.zip
+            sudo mv terraform /usr/local/bin/
+
+      - run:
+          name: Install AWS CLI
+          command: |
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip awscliv2.zip
+            sudo ./aws/install
+
+      - run:
+          name: Configure AWS OIDC Credentials
+          command: |
+            export AWS_ROLE_ARN="arn:aws:iam::<ACCOUNT_ID>:role/<ROLE_NAME>"
+            export AWS_WEB_IDENTITY_TOKEN_FILE="/tmp/web_identity_token"
+            echo $CIRCLE_OIDC_TOKEN_V2 > $AWS_WEB_IDENTITY_TOKEN_FILE
+
+      - run:
+          name: Terraform Init
+          command: |
+            cd terraform
+            terraform init
+
+      - run:
+          name: Terraform Validate
+          command: |
+            cd terraform
+            terraform validate
+
+workflows:
+  version: 2
+  security-and-validation:
+    jobs:
+      - test-aws-oidc
+      - validate-terraform:
+          requires:
+            - test-aws-oidc
