@@ -240,7 +240,7 @@ This lab is accompanied by a 4-part YouTube series: **Cloud Security Automation 
 |---|---|
 | [Part 1](https://youtu.be/LkgudHL7gHg) | OPA & Policy-as-Code - The Digital Rulebook |
 | [Part 2](https://youtu.be/duBk5lrBO2s) | CI/CD Pipeline - The Automated Assembly Line |
-| Part 3 | AWS Authentication with OIDC - The Secret Handshake |
+| [Part 3](https://youtu.be/WlZjKe66MR0) | AWS Authentication with OIDC - The Secret Handshake |
 | Part 4 | Terraform Provisioning - The Blueprint Check |
 
 ---
