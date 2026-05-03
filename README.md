@@ -4,21 +4,11 @@ A hands-on lab demonstrating cloud security automation using CircleCI, AWS OIDC,
 
 ---
 
-# CircleCI + AWS + OPA + Terraform Lab
-
-A hands-on lab demonstrating cloud security automation using CircleCI, AWS OIDC, Open Policy Agent, and Terraform.
-
----
-
 ## Why This Matters
 
 In most organizations, compliance reviews happen after infrastructure is deployed. A reviewer manually checks whether the resource meets policy, files evidence, and flags issues for remediation. This is slow, repetitive, and often misses configuration drift between reviews.
 
 This lab shifts compliance to the left. Before any AWS resource is deployed, the pipeline checks it against security policy. If the resource fails, the pipeline blocks the deployment. Compliance becomes automated, continuous, and built into the deployment process rather than bolted on afterward.
-
----
-
-## What This Lab Demonstrates
 
 ---
 
@@ -194,10 +184,10 @@ Tests the policy logic before it runs in automation. Confirms the policy correct
 **`terraform/main.tf`**
 The infrastructure blueprint. Defines a compliant S3 bucket with encryption, versioning, and public access blocking enabled.
 
-**`circleci-trust-policy.json`**
+**`aws-configs/circleci-trust-policy.json`**
 Controls who is allowed to assume the IAM role - scoped to your specific CircleCI org and project.
 
-**`circleci-policy.json`**
+**`aws-configs/circleci-policy.json`**
 Controls what CircleCI is allowed to do in AWS once it has assumed the role.
 
 ---
@@ -225,9 +215,7 @@ In CircleCI you will see all five jobs. Click into any job to view its logs.
 - **`validate-non-compliant-resource`** - OPA found violations. The bad bucket was correctly blocked.
 - **`validate-terraform`** - Terraform initialized, validated, and applied. A real S3 bucket was created in AWS.
 
-> **Note:** Each successful `terraform apply` creates a new bucket with a random suffix. If you re-run the pipeline multiple times, you will accumulate buckets. Clean up old ones by tearing them down in your terminal or manually in the AWS S3 console.
-
----
+> **Note:** Each successful `terraform apply` creates a new bucket. See Step 11 below for cleanup.
 
 ---
 
