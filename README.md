@@ -19,15 +19,15 @@ A hands-on lab demonstrating cloud security automation using CircleCI, AWS OIDC,
 ## Repo Structure
 
 | File | Purpose |
-|---|---|
+| --- | --- |
 | `.circleci/config.yml` | Pipeline definition |
 | `policies/security/s3.rego` | OPA security policy |
 | `tests/s3_test.rego` | OPA policy tests |
 | `terraform/main.tf` | Infrastructure blueprint |
 | `compliant-s3.json` | Sample compliant S3 resource |
 | `non-compliant-s3.json` | Sample non-compliant S3 resource |
-| `circleci-trust-policy.json` | AWS trust policy |
-| `circleci-policy.json` | AWS permissions policy |
+| `aws-configs/circleci-trust-policy.json` | AWS trust policy |
+| `aws-configs/circleci-policy.json` | AWS permissions policy |
 
 ---
 
@@ -136,7 +136,7 @@ This tells AWS to trust tokens issued by CircleCI.
 
 The trust policy restricts which CircleCI org and project can assume the role.
 
-Open `circleci-trust-policy.json` and confirm your **AWS Account ID**, **Org ID**, and **Project ID** are correctly set in all places they appear:
+Open `aws-configs/circleci-trust-policy.json` and confirm your **AWS Account ID**, **Org ID**, and **Project ID** are correctly set in all places they appear:
 
 - **Federated ARN** - contains your AWS account ID and Org ID
 - **Condition key names** - contain your Org ID
