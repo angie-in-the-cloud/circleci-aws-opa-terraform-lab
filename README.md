@@ -4,6 +4,24 @@ A hands-on lab demonstrating cloud security automation using CircleCI, AWS OIDC,
 
 ---
 
+# CircleCI + AWS + OPA + Terraform Lab
+
+A hands-on lab demonstrating cloud security automation using CircleCI, AWS OIDC, Open Policy Agent, and Terraform.
+
+---
+
+## Why This Matters
+
+In most organizations, compliance reviews happen after infrastructure is deployed. A reviewer manually checks whether the resource meets policy, files evidence, and flags issues for remediation. This is slow, repetitive, and often misses configuration drift between reviews.
+
+This lab shifts compliance to the left. Before any AWS resource is deployed, the pipeline checks it against security policy. If the resource fails, the pipeline blocks the deployment. Compliance becomes automated, continuous, and built into the deployment process rather than bolted on afterward.
+
+---
+
+## What This Lab Demonstrates
+
+---
+
 ## What This Lab Demonstrates
 
 | What | How |
@@ -207,7 +225,39 @@ In CircleCI you will see all five jobs. Click into any job to view its logs.
 - **`validate-non-compliant-resource`** - OPA found violations. The bad bucket was correctly blocked.
 - **`validate-terraform`** - Terraform initialized, validated, and applied. A real S3 bucket was created in AWS.
 
-> **Note:** Each successful `terraform apply` creates a new bucket with a random suffix. If you re-run the pipeline multiple times, you will accumulate buckets. Clean up old ones manually in the AWS S3 console.
+> **Note:** Each successful `terraform apply` creates a new bucket with a random suffix. If you re-run the pipeline multiple times, you will accumulate buckets. Clean up old ones by tearing them down in your terminal or manually in the AWS S3 console.
+
+---
+
+---
+
+### Step 11: Clean Up
+
+Each successful `terraform apply` creates a new S3 bucket with a random suffix. To avoid accumulating buckets and incurring storage costs, tear down resources when you are done.
+
+**Option 1: Tear down with Terraform (recommended)**
+
+From the `terraform/` folder, run:
+
+```bash
+terraform destroy -auto-approve
+```
+
+This removes the bucket Terraform last created and updates the state file.
+
+**Option 2: Delete buckets manually with AWS CLI**
+
+If you ran the pipeline multiple times, Terraform only tracks the most recent bucket. To find and delete the older ones:
+
+```bash
+# List all lab buckets
+aws s3 ls --profile <YOUR-PROFILE-NAME> | grep circleci-lab-compliant
+
+# Delete a specific bucket (replace with actual bucket name)
+aws s3 rb s3://circleci-lab-compliant-xxxxxxxx --force --profile <YOUR-PROFILE-NAME>
+```
+
+> **Why this matters:** Leaving unused S3 buckets accumulates storage costs and creates audit noise. Real GRC environments require resource lifecycle discipline. Practicing teardown is part of the lab.
 
 ---
 
@@ -224,11 +274,16 @@ This lab implements several cloud governance concepts in code:
 | Audit trail | Full change history in Git |
 | Least privilege access | OIDC temporary credentials, scoped IAM role |
 
-**Frameworks supported:**
-- **SOC 2**: CC6, CC7, CC8
-- **NIST 800-53**: CM-2, CM-6, SI-7
-- **CIS Benchmarks**: S3 encryption and public access controls
-- **ISO 27001**: Operations security and system development controls
+**Control patterns demonstrated:**
+
+This lab implements two specific S3 controls (encryption at rest, public access blocking). These map to the following control areas across common frameworks:
+
+* **SOC 2**: CC6.1 (logical access & protection of data at rest)
+* **NIST 800-53**: SC-28 (protection of information at rest), AC-3 (access enforcement/Public access blocking)
+* **CIS AWS Benchmark**: 2.1.2 (S3 encryption), 2.1.4 (S3 public access block)
+* **ISO 27001:2022**: A.8.24 (cryptography/encryption at rest), A.8.22 (network security/technical public access block)
+
+Production GRC programs would expand this pattern to cover additional resource types and controls.
 
 ---
 
