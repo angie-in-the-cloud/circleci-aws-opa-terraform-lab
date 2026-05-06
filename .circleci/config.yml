@@ -13,20 +13,112 @@ jobs:
           name: Install AWS CLI
           command: |
             curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-            unzip awscliv2.zip
+            unzip -o awscliv2.zip
             sudo ./aws/install
+            aws --version
 
       - run:
-          name: Configure AWS OIDC Credentials
+          name: Test AWS authentication with OIDC
           command: |
-            export AWS_ROLE_ARN="arn:aws:iam::<ACCOUNT_ID>:role/<ROLE_NAME>"
-            export AWS_WEB_IDENTITY_TOKEN_FILE="/tmp/web_identity_token"
-            echo $CIRCLE_OIDC_TOKEN_V2 > $AWS_WEB_IDENTITY_TOKEN_FILE
+            export AWS_ROLE_ARN="arn:aws:iam::399966706844:role/CircleCI-OIDC-Lab-Role"
+            export AWS_WEB_IDENTITY_TOKEN_FILE="/tmp/web-identity-token"
+            echo "$CIRCLE_OIDC_TOKEN_V2" > "$AWS_WEB_IDENTITY_TOKEN_FILE"
 
-      - run:
-          name: Verify Identity
-          command: |
+            echo "Testing AWS OIDC authentication..."
             aws sts get-caller-identity
+
+  test-opa-policies:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - checkout
+
+      - run:
+          name: Install OPA
+          command: |
+            curl -L -o opa https://openpolicyagent.org/downloads/latest/opa_linux_amd64_static
+            chmod +x opa
+            sudo mv opa /usr/local/bin/opa
+            opa version
+
+      - run:
+          name: Run OPA tests
+          command: |
+            echo "Running OPA policy tests..."
+            # Fix: run tests from the single policies/ directory where both
+            # s3.rego and s3_test.rego live (not a separate "tests" dir)
+            opa test policies/
+            echo "OPA policy tests passed."
+
+  validate-compliant-resource:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - checkout
+
+      - run:
+          name: Install OPA and jq
+          command: |
+            curl -L -o opa https://openpolicyagent.org/downloads/latest/opa_linux_amd64_static
+            chmod +x opa
+            sudo mv opa /usr/local/bin/opa
+
+            sudo apt-get update
+            sudo apt-get install -y jq
+
+      - run:
+          name: Validate compliant S3 resource
+          command: |
+            echo "Checking compliant resource..."
+            cat compliant-s3.json
+
+            RESULT=$(opa eval -d policies/ -i compliant-s3.json "data.aws.s3.security.deny" --format json)
+
+            echo "OPA result:"
+            echo "$RESULT" | jq
+
+            if echo "$RESULT" | jq -e '.result[0].expressions[0].value | length == 0' > /dev/null; then
+              echo "No deny violations found."
+              echo "Compliant resource passed validation."
+            else
+              echo "Unexpected policy violations found."
+              exit 1
+            fi
+
+  validate-non-compliant-resource:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - checkout
+
+      - run:
+          name: Install OPA and jq
+          command: |
+            curl -L -o opa https://openpolicyagent.org/downloads/latest/opa_linux_amd64_static
+            chmod +x opa
+            sudo mv opa /usr/local/bin/opa
+
+            sudo apt-get update
+            sudo apt-get install -y jq
+
+      - run:
+          name: Validate non-compliant S3 resource is denied
+          command: |
+            echo "Checking non-compliant resource..."
+            cat non-compliant-s3.json
+
+            RESULT=$(opa eval -d policies/ -i non-compliant-s3.json "data.aws.s3.security.deny" --format json)
+
+            echo "OPA result:"
+            echo "$RESULT" | jq
+
+            # This resource SHOULD be denied — fail the job if it is not
+            if echo "$RESULT" | jq -e '.result[0].expressions[0].value | length > 0' > /dev/null; then
+              echo "Policy correctly denied the non-compliant resource."
+            else
+              echo "ERROR: Non-compliant resource was not denied by policy."
+              exit 1
+            fi
 
   validate-terraform:
     docker:
@@ -39,41 +131,63 @@ jobs:
       - run:
           name: Install Terraform
           command: |
-            curl -LO https://releases.hashicorp.com/terraform/1.6.6/terraform_1.6.6_linux_amd64.zip
-            unzip terraform_1.6.6_linux_amd64.zip
-            sudo mv terraform /usr/local/bin/
+            curl -L -o terraform.zip https://releases.hashicorp.com/terraform/1.6.6/terraform_1.6.6_linux_amd64.zip
+            mkdir -p /tmp/terraform-bin
+            unzip -o terraform.zip -d /tmp/terraform-bin
+            sudo mv /tmp/terraform-bin/terraform /usr/local/bin/terraform
+            terraform version
 
       - run:
           name: Install AWS CLI
           command: |
             curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-            unzip awscliv2.zip
+            unzip -o awscliv2.zip
             sudo ./aws/install
+            aws --version
 
       - run:
-          name: Configure AWS OIDC Credentials
+          name: Configure AWS OIDC credentials
           command: |
-            export AWS_ROLE_ARN="arn:aws:iam::<ACCOUNT_ID>:role/<ROLE_NAME>"
-            export AWS_WEB_IDENTITY_TOKEN_FILE="/tmp/web_identity_token"
-            echo $CIRCLE_OIDC_TOKEN_V2 > $AWS_WEB_IDENTITY_TOKEN_FILE
+            # Fix: export credentials before any Terraform step, not just apply,
+            # so that terraform init can reach AWS (e.g. S3 remote backend)
+            export AWS_ROLE_ARN="arn:aws:iam::399966706844:role/CircleCI-OIDC-Lab-Role"
+            export AWS_WEB_IDENTITY_TOKEN_FILE="/tmp/web-identity-token"
+            echo "$CIRCLE_OIDC_TOKEN_V2" > "$AWS_WEB_IDENTITY_TOKEN_FILE"
+
+            # Persist env vars for subsequent steps in this job
+            echo "export AWS_ROLE_ARN=$AWS_ROLE_ARN" >> $BASH_ENV
+            echo "export AWS_WEB_IDENTITY_TOKEN_FILE=$AWS_WEB_IDENTITY_TOKEN_FILE" >> $BASH_ENV
 
       - run:
-          name: Terraform Init
+          name: Terraform init
           command: |
             cd terraform
             terraform init
 
       - run:
-          name: Terraform Validate
+          name: Terraform validate
           command: |
             cd terraform
             terraform validate
 
+      - run:
+          name: Terraform apply
+          command: |
+            cd terraform
+            terraform apply -auto-approve
+
 workflows:
-  version: 2
-  security-and-validation:
+  compliant-workflow:
     jobs:
       - test-aws-oidc
+      - test-opa-policies
+      - validate-compliant-resource:
+          requires:
+            - test-opa-policies
+      - validate-non-compliant-resource:
+          requires:
+            - test-opa-policies
       - validate-terraform:
           requires:
-            - test-aws-oidc
+            - validate-compliant-resource
+            - validate-non-compliant-resource
