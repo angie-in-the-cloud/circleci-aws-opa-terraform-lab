@@ -29,8 +29,8 @@ This lab shifts compliance to the left. Before any AWS resource is deployed, the
 | File | Purpose |
 | --- | --- |
 | `.circleci/config.yml` | Pipeline definition |
-| `policies/security/s3.rego` | OPA security policy |
-| `tests/s3_test.rego` | OPA policy tests |
+| `policies/s3.rego` | OPA security policy |
+| `policies/s3_test.rego` | OPA policy tests |
 | `terraform/main.tf` | Infrastructure blueprint |
 | `compliant-s3.json` | Sample compliant S3 resource |
 | `non-compliant-s3.json` | Sample non-compliant S3 resource |
@@ -51,7 +51,9 @@ The pipeline runs five jobs defined in `.circleci/config.yml`:
 | `validate-non-compliant-resource` | Feeds `non-compliant-s3.json` into OPA - expects violations |
 | `validate-terraform` | Runs `terraform init`, `validate`, and `apply` to provision infrastructure |
 
-`test-aws-oidc` runs at the same time as `test-opa-policies`. All other jobs wait for those two to pass first.
+**Job order:**
+
+`test-aws-oidc` and `test-opa-policies` run in parallel at the start of the pipeline. Once `test-opa-policies` passes, the two OPA validation jobs (`validate-compliant-resource` and `validate-non-compliant-resource`) run in parallel. Once both OPA validation jobs pass, `validate-terraform` runs and provisions the bucket.
 
 ---
 
@@ -175,10 +177,10 @@ Then in CircleCI:
 
 ### Step 8: Review the Key Files
 
-**`policies/security/s3.rego`**
+**`policies/s3.rego`**
 The OPA policy file. Contains two rules: S3 buckets must have server-side encryption enabled, and S3 buckets must not use a `public-read` ACL.
 
-**`tests/s3_test.rego`**
+**`policies/s3_test.rego`**
 Tests the policy logic before it runs in automation. Confirms the policy correctly allows compliant buckets and catches violations.
 
 **`terraform/main.tf`**
@@ -246,6 +248,14 @@ aws s3 rb s3://circleci-lab-compliant-xxxxxxxx --force --profile <YOUR-PROFILE-N
 ```
 
 > **Why this matters:** Leaving unused S3 buckets accumulates storage costs and creates audit noise. Real GRC environments require resource lifecycle discipline. Practicing teardown is part of the lab.
+
+---
+
+## A Note on the Pipeline Design
+
+`test-aws-oidc` runs in parallel with the rest of the pipeline, but it doesn't actually block any other job from running. That means if AWS authentication is broken, the OPA jobs still run, and the pipeline only fails at the very end when Terraform tries to deploy.
+
+If I were to rebuild this pipeline, I would make `test-aws-oidc` a required dependency for `validate-terraform`. That way, auth failures would show up early instead of after several minutes of unnecessary work.
 
 ---
 
