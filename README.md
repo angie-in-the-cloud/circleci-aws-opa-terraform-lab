@@ -278,7 +278,6 @@ This lab implements two specific S3 controls (encryption at rest, public access 
 
 * **SOC 2**: CC6.1 (logical access & protection of data at rest)
 * **NIST 800-53**: SC-28 (protection of information at rest), AC-3 (access enforcement/Public access blocking)
-* **CIS AWS Benchmark**: 2.1.2 (S3 encryption), 2.1.4 (S3 public access block)
 * **ISO 27001:2022**: A.8.24 (cryptography/encryption at rest)
 
 Production GRC programs would expand this pattern to cover additional resource types and controls.
